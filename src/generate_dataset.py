@@ -3,6 +3,7 @@ Generate a realistic synthetic dataset for Student Placement Prediction.
 This mimics a Kaggle-style dataset with 1000 student records.
 """
 
+import os
 import pandas as pd
 import numpy as np
 
@@ -53,7 +54,13 @@ df = pd.DataFrame({
     "Placed":            placed,
 })
 
-out = "/home/claude/Student-Placement-Prediction/dataset/student_placement.csv"
+# Portable path: works on ANY machine, regardless of where the project is cloned.
+# This file lives in src/, so BASE is the project root (one level up).
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT_DIR = os.path.join(BASE, "dataset")
+os.makedirs(OUT_DIR, exist_ok=True)
+out = os.path.join(OUT_DIR, "student_placement.csv")
+
 df.to_csv(out, index=False)
 print(f"Dataset saved → {out}")
 print(df["Placed"].value_counts().to_string())

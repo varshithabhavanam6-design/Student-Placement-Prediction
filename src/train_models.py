@@ -4,6 +4,8 @@ train_models.py
 Trains Logistic Regression, Decision Tree, and Random Forest on the
 student placement dataset, compares accuracy, saves the best model,
 and exports visualisation charts.
+
+Run from anywhere:  python src/train_models.py
 """
 
 import os, joblib, warnings
@@ -28,11 +30,20 @@ from sklearn.metrics import (
 warnings.filterwarnings("ignore")
 sns.set_theme(style="whitegrid")
 
-BASE   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA   = os.path.join(BASE, "dataset", "student_placement.csv")
+# This file lives in src/, so the project root is one level up — this works
+# no matter what directory the script is launched from.
+BASE      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA      = os.path.join(BASE, "dataset", "student_placement.csv")
 MODEL_DIR = os.path.join(BASE, "src")
 SS_DIR    = os.path.join(BASE, "screenshots")
 os.makedirs(SS_DIR, exist_ok=True)
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+if not os.path.exists(DATA):
+    raise FileNotFoundError(
+        f"Dataset not found at {DATA}\n"
+        f"Run 'python src/generate_dataset.py' first to create it."
+    )
 
 # ── 1. Load & split ──────────────────────────────────────────────────────────
 df = pd.read_csv(DATA)

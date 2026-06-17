@@ -11,7 +11,6 @@ import streamlit as st
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from sklearn.ensemble import RandomForestClassifier
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -91,17 +90,34 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Load artefacts ─────────────────────────────────────────────────────────────
+# ── Paths ─────────────────────────────────────────────────────────────────────
 BASE = os.path.dirname(os.path.abspath(__file__))
 SRC  = os.path.join(BASE, "src")
 SS   = os.path.join(BASE, "screenshots")
 DATA = os.path.join(BASE, "dataset", "student_placement.csv")
 
+MODEL_PATH    = os.path.join(SRC, "best_model.pkl")
+SCALER_PATH   = os.path.join(SRC, "scaler.pkl")
+FEATURES_PATH = os.path.join(SRC, "features.pkl")
+
+# ── Guard: make sure training has been run before the app starts ──────────────
+missing = [p for p in (MODEL_PATH, SCALER_PATH, FEATURES_PATH, DATA) if not os.path.exists(p)]
+if missing:
+    st.error(
+        "⚠️ Required files are missing. Please run the setup scripts first:\n\n"
+        "```\n"
+        "python src/generate_dataset.py\n"
+        "python src/train_models.py\n"
+        "```\n\n"
+        "Missing file(s):\n" + "\n".join(f"- {m}" for m in missing)
+    )
+    st.stop()
+
 @st.cache_resource
 def load_model():
-    model    = joblib.load(os.path.join(SRC, "best_model.pkl"))
-    scaler   = joblib.load(os.path.join(SRC, "scaler.pkl"))
-    features = joblib.load(os.path.join(SRC, "features.pkl"))
+    model    = joblib.load(MODEL_PATH)
+    scaler   = joblib.load(SCALER_PATH)
+    features = joblib.load(FEATURES_PATH)
     return model, scaler, features
 
 @st.cache_data
