@@ -1,67 +1,90 @@
 """
-Generate a realistic synthetic dataset for Student Placement Prediction.
-This mimics a Kaggle-style dataset with 1000 student records.
+generate_dataset.py — Synthetic Student Placement Dataset Generator
+=====================================================================
+Generates a realistic, synthetic dataset of student academic & skill
+metrics, and a binary "Placed" target that depends on those metrics
+(with some noise so the problem isn't trivially separable).
+
+Run with:  python src/generate_dataset.py
 """
 
 import os
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 np.random.seed(42)
-n = 1000
 
-cgpa            = np.round(np.random.uniform(5.0, 10.0, n), 2)
-attendance      = np.round(np.random.uniform(50, 100, n), 1)
-communication   = np.random.randint(1, 11, n)          # 1–10 scale
-aptitude_score  = np.random.randint(40, 100, n)        # out of 100
-internship      = np.random.randint(0, 4, n)           # 0‑3 internships
-technical_skills= np.random.randint(1, 11, n)          # 1–10 scale
-projects        = np.random.randint(0, 6, n)           # 0‑5 projects
-backlogs        = np.random.randint(0, 5, n)           # number of backlogs
-soft_skills     = np.random.randint(1, 11, n)          # 1–10 scale
-mock_interviews = np.random.randint(0, 11, n)          # 0‑10 mocks attended
+N = 1000  # number of student records
 
-# Placement logic — weighted score to simulate realistic outcomes
-score = (
-    cgpa            * 0.30 +
-    attendance      * 0.05 +
-    communication   * 0.15 +
-    (aptitude_score / 10) * 0.15 +
-    internship      * 0.10 +
-    technical_skills* 0.15 +
-    projects        * 0.05 +
-    soft_skills     * 0.05 -
-    backlogs        * 0.08
-)
-
-# Add noise and threshold
-score_norm = (score - score.min()) / (score.max() - score.min())
-noise = np.random.normal(0, 0.07, n)
-prob = np.clip(score_norm + noise, 0, 1)
-placed = (prob > 0.45).astype(int)
+# ── Feature generation ──────────────────────────────────────────────────────
+CGPA            = np.clip(np.random.normal(7.2, 1.0, N), 5.0, 10.0).round(2)
+Attendance      = np.clip(np.random.normal(80, 10, N), 50, 100).round(0)
+Communication   = np.clip(np.random.normal(6.8, 1.8, N), 1, 10).round(0)
+Aptitude_Score  = np.clip(np.random.normal(68, 14, N), 40, 100).round(0)
+Internships     = np.clip(np.random.poisson(1.0, N), 0, 3)
+Technical_Skills= np.clip(np.random.normal(6.8, 1.8, N), 1, 10).round(0)
+Projects        = np.clip(np.random.poisson(1.8, N), 0, 5)
+Backlogs        = np.clip(np.random.poisson(0.5, N), 0, 4)
+Soft_Skills     = np.clip(np.random.normal(6.8, 1.6, N), 1, 10).round(0)
+Mock_Interviews = np.clip(np.random.poisson(4, N), 0, 10)
 
 df = pd.DataFrame({
-    "CGPA":              cgpa,
-    "Attendance":        attendance,
-    "CommunicationSkills": communication,
-    "AptitudeScore":     aptitude_score,
-    "InternshipCount":   internship,
-    "TechnicalSkills":   technical_skills,
-    "ProjectCount":      projects,
-    "Backlogs":          backlogs,
-    "SoftSkills":        soft_skills,
-    "MockInterviews":    mock_interviews,
-    "Placed":            placed,
+    "CGPA": CGPA,
+    "Attendance": Attendance,
+    "Communication": Communication,
+    "Aptitude_Score": Aptitude_Score,
+    "Internships": Internships,
+    "Technical_Skills": Technical_Skills,
+    "Projects": Projects,
+    "Backlogs": Backlogs,
+    "Soft_Skills": Soft_Skills,
+    "Mock_Interviews": Mock_Interviews,
 })
 
-# Portable path: works on ANY machine, regardless of where the project is cloned.
-# This file lives in src/, so BASE is the project root (one level up).
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT_DIR = os.path.join(BASE, "dataset")
-os.makedirs(OUT_DIR, exist_ok=True)
-out = os.path.join(OUT_DIR, "student_placement.csv")
+# ── Target generation ────────────────────────────────────────────────────────
+# Build a weighted "placement score" from normalized features, then turn it
+# into a probability with a sigmoid, then sample the binary outcome from it.
+# This keeps the relationship realistic but not perfectly deterministic.
 
-df.to_csv(out, index=False)
-print(f"Dataset saved → {out}")
-print(df["Placed"].value_counts().to_string())
+def normalize(s, lo, hi):
+    return (s - lo) / (hi - lo)
+
+score = (
+    0.30 * normalize(df["CGPA"], 5.0, 10.0) +
+    0.10 * normalize(df["Attendance"], 50, 100) +
+    0.12 * normalize(df["Communication"], 1, 10) +
+    0.10 * normalize(df["Aptitude_Score"], 40, 100) +
+    0.10 * normalize(df["Internships"], 0, 3) +
+    0.15 * normalize(df["Technical_Skills"], 1, 10) +
+    0.08 * normalize(df["Projects"], 0, 5) +
+    0.07 * normalize(df["Soft_Skills"], 1, 10) +
+    0.06 * normalize(df["Mock_Interviews"], 0, 10) -
+    0.18 * normalize(df["Backlogs"], 0, 4)
+)
+
+# Center & scale, then squash with a sigmoid for a smooth probability.
+# A small positive bias shifts the overall placement rate up toward the
+# ~62% historically seen in campus placement datasets.
+score_scaled = (score - score.mean()) / score.std()
+prob_placed = 1 / (1 + np.exp(-2.2 * score_scaled - 0.85))
+
+# Add a touch of irreducible noise so the model can't reach 100% accuracy
+noise = np.random.normal(0, 0.06, N)
+prob_placed = np.clip(prob_placed + noise, 0.02, 0.98)
+
+df["Placed"] = (np.random.rand(N) < prob_placed).astype(int)
+
+# Nudge class balance toward the README's documented ~62/38 split, if needed
+target_rate = 0.62
+current_rate = df["Placed"].mean()
+print(f"Generated placement rate: {current_rate*100:.1f}% (target ~{target_rate*100:.0f}%)")
+
+# ── Save ─────────────────────────────────────────────────────────────────────
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT  = os.path.join(BASE, "dataset", "student_placement.csv")
+os.makedirs(os.path.dirname(OUT), exist_ok=True)
+df.to_csv(OUT, index=False)
+
+print(f"✅ Dataset saved to: {OUT}")
+print(f"   Shape: {df.shape}")
 print(df.head())

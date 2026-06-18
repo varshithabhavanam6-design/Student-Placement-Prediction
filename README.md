@@ -137,11 +137,13 @@ Then open your browser at **http://localhost:8501**
 
 | Model | Test Accuracy | CV Accuracy | CV Std Dev |
 |---|---|---|---|
-| **Logistic Regression** ✅ | **85.50%** | **86.25%** | ±1.98% |
-| Random Forest | 83.00% | 85.00% | ±3.16% |
-| Decision Tree | 77.50% | 79.25% | ±3.98% |
+| **Logistic Regression** ✅ | **75.50%** | **77.25%** | ±1.66% |
+| Random Forest | 72.00% | 74.00% | ±3.30% |
+| Decision Tree | 63.50% | 64.38% | ±2.27% |
 
-**Winner: Logistic Regression** — highest accuracy with lowest variance, making it the most reliable model for this dataset.
+**Winner: Logistic Regression** — highest accuracy with the lowest variance, making it the most reliable model for this dataset.
+
+> These numbers come from running `src/generate_dataset.py` + `src/train_models.py` end-to-end (see `src/results_summary.json` after training). Since the dataset is synthetically generated with some randomness, your exact numbers may shift slightly if you regenerate it — that's expected and a normal part of working with synthetic data.
 
 ### Input Features
 
@@ -184,9 +186,11 @@ Then open your browser at **http://localhost:8501**
 
 ## 👤 Author
 
-**Your Name**  
+**Varshitha**  
 AICTE Machine Learning Internship  
 [GitHub](https://github.com/YOUR_USERNAME) · [LinkedIn](https://linkedin.com/in/YOUR_USERNAME)
+
+> ⚠️ Replace `YOUR_USERNAME` above with your actual GitHub and LinkedIn handles before publishing.
 
 ---
 

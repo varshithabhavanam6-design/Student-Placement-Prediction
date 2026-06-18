@@ -124,8 +124,19 @@ def load_model():
 def load_data():
     return pd.read_csv(DATA)
 
+@st.cache_data
+def load_results_summary():
+    """Loads real metrics produced by src/train_models.py, if available."""
+    import json
+    path = os.path.join(SRC, "results_summary.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            return json.load(f)
+    return None
+
 model, scaler, features = load_model()
 df = load_data()
+results_summary = load_results_summary()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -153,10 +164,17 @@ st.markdown("""
 
 # ── Top metrics ───────────────────────────────────────────────────────────────
 placed_pct = df["Placed"].mean() * 100
+
+if results_summary:
+    best_name = results_summary["best_model"]
+    best_acc  = f"{results_summary[best_name]['test_accuracy']:.1f}%"
+else:
+    best_acc = "N/A"
+
 c1, c2, c3, c4 = st.columns(4)
 for col, val, lbl in zip(
     [c1, c2, c3, c4],
-    [len(df), f"{placed_pct:.1f}%", "85.5%", "3"],
+    [len(df), f"{placed_pct:.1f}%", best_acc, "3"],
     ["Total Students", "Placement Rate", "Best Accuracy", "ML Models"],
 ):
     col.markdown(f"""
@@ -282,13 +300,29 @@ with tab2:
 
     st.markdown('<div class="section-title">Model Comparison Summary</div>',
                 unsafe_allow_html=True)
-    summary = pd.DataFrame({
-        "Model":              ["Logistic Regression", "Decision Tree", "Random Forest"],
-        "Test Accuracy":      ["85.50%", "77.50%", "83.00%"],
-        "CV Accuracy":        ["86.25%", "79.25%", "85.00%"],
-        "CV Std Dev":         ["±1.98%", "±3.98%", "±3.16%"],
-        "Best For":           ["Interpretability", "Visual explanation", "Robustness"],
-    })
+    if results_summary:
+        order = ["Logistic Regression", "Decision Tree", "Random Forest"]
+        best_for = {
+            "Logistic Regression": "Interpretability",
+            "Decision Tree": "Visual explanation",
+            "Random Forest": "Robustness",
+        }
+        summary = pd.DataFrame({
+            "Model": order,
+            "Test Accuracy": [f"{results_summary[m]['test_accuracy']:.2f}%" for m in order],
+            "CV Accuracy":   [f"{results_summary[m]['cv_accuracy']:.2f}%" for m in order],
+            "CV Std Dev":    [f"±{results_summary[m]['cv_std']:.2f}%" for m in order],
+            "Best For":      [best_for[m] for m in order],
+        })
+        st.caption(f"🏆 Best model selected: **{results_summary['best_model']}**")
+    else:
+        summary = pd.DataFrame({
+            "Model":              ["Logistic Regression", "Decision Tree", "Random Forest"],
+            "Test Accuracy":      ["N/A", "N/A", "N/A"],
+            "CV Accuracy":        ["N/A", "N/A", "N/A"],
+            "CV Std Dev":         ["N/A", "N/A", "N/A"],
+            "Best For":           ["Interpretability", "Visual explanation", "Robustness"],
+        })
     st.dataframe(summary, use_container_width=True, hide_index=True)
 
 # ═══════════════════════════════════════════════════════════════

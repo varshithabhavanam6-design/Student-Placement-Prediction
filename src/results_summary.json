@@ -1,0 +1,18 @@
+{
+  "Logistic Regression": {
+    "test_accuracy": 75.5,
+    "cv_accuracy": 77.25,
+    "cv_std": 1.66
+  },
+  "Decision Tree": {
+    "test_accuracy": 63.5,
+    "cv_accuracy": 64.38,
+    "cv_std": 2.27
+  },
+  "Random Forest": {
+    "test_accuracy": 72.0,
+    "cv_accuracy": 74.0,
+    "cv_std": 3.3
+  },
+  "best_model": "Logistic Regression"
+}
