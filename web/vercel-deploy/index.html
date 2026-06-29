@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Student Placement Predictor</title>
+<meta name="description" content="A logistic regression model — trained in Python, running live in your browser — that estimates campus placement likelihood from academic and skill inputs." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0F14;
+    --bg-elevated:#121821;
+    --bg-inset:#0A0E13;
+    --border:#26303B;
+    --border-soft:#1B232C;
+    --text:#E7EDF3;
+    --text-muted:#8A97A6;
+    --accent:#5FA8FF;
+    --accent-dim:rgba(95,168,255,0.14);
+    --success:#3FC97B;
+    --success-dim:rgba(63,201,123,0.14);
+    --danger:#F8665C;
+    --danger-dim:rgba(248,102,92,0.14);
+    --warning:#E0A23B;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(900px 500px at 12% -10%, rgba(95,168,255,0.10), transparent 60%),
+      radial-gradient(700px 500px at 100% 0%, rgba(63,201,123,0.06), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .display{font-family:'Space Grotesk',sans-serif;}
+  a{color:var(--accent);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+
+  /* ===== Top bar ===== */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 32px;border-bottom:1px solid var(--border-soft);
+    max-width:1180px;margin:0 auto;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:.2px;}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--success);box-shadow:0 0 12px var(--success);}
+  .topbar nav{display:flex;gap:22px;font-size:.88rem;color:var(--text-muted);}
+  .topbar nav a{color:var(--text-muted);}
+  .topbar nav a:hover{color:var(--text);text-decoration:none;}
+  .badge-live{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:.72rem;color:var(--success);background:var(--success-dim);
+    border:1px solid rgba(63,201,123,0.35);border-radius:999px;padding:3px 10px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .badge-live .dot{width:6px;height:6px;border-radius:50%;background:var(--success);animation:pulse 1.8s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px;}
+
+  /* ===== Hero ===== */
+  .hero-head{padding:44px 0 6px;}
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--accent);
+    letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;
+  }
+  h1.title{
+    font-family:'Space Grotesk',sans-serif;font-weight:700;
+    font-size:2.6rem;line-height:1.08;margin:0 0 12px;letter-spacing:-0.01em;
+  }
+  .subtitle{color:var(--text-muted);font-size:1.05rem;max-width:640px;margin:0;}
+
+  .predictor{
+    display:grid;grid-template-columns:1.15fr 1fr;gap:28px;
+    margin:34px 0 56px;align-items:start;
+  }
+  @media (max-width:880px){.predictor{grid-template-columns:1fr;}}
+
+  .panel{
+    background:var(--bg-elevated);border:1px solid var(--border);
+    border-radius:var(--radius);padding:26px 28px;
+  }
+
+  .panel h2{
+    font-family:'Space Grotesk',sans-serif;font-size:1.02rem;font-weight:600;
+    margin:0 0 18px;color:var(--text);
+  }
+
+  .slider-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px;}
+  @media (max-width:520px){.slider-grid{grid-template-columns:1fr;}}
+  .field label{
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-size:.84rem;color:var(--text-muted);margin-bottom:8px;
+  }
+  .field label .v{
+    font-family:'JetBrains Mono',monospace;color:var(--text);font-size:.86rem;font-weight:600;
+  }
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:5px;
+    border-radius:4px;background:var(--border);outline:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:var(--accent);border:3px solid #061018;
+    box-shadow:0 0 0 3px rgba(95,168,255,0.18);cursor:pointer;margin-top:0px;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px;height:16px;border-radius:50%;background:var(--accent);
+    border:3px solid #061018;cursor:pointer;
+  }
+
+  /* ===== Gauge / result panel ===== */
+  .result-panel{display:flex;flex-direction:column;align-items:center;text-align:center;}
+  .gauge-wrap{position:relative;width:212px;height:212px;margin:6px 0 4px;}
+  .gauge-wrap svg{transform:rotate(-90deg);}
+  .gauge-center{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+  }
+  .gauge-pct{font-family:'Space Grotesk',sans-serif;font-size:2.5rem;font-weight:700;}
+  .gauge-lbl{font-size:.74rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+
+  .verdict{
+    margin-top:14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:1.15rem;
+  }
+  .verdict.placed{color:var(--success);}
+  .verdict.risk{color:var(--danger);}
+
+  .tips{width:100%;margin-top:20px;text-align:left;}
+  .tips .tip{
+    font-size:.85rem;color:var(--text);background:var(--bg-inset);
+    border-left:3px solid var(--accent);border-radius:0 8px 8px 0;
+    padding:8px 12px;margin-bottom:8px;
+  }
+  .tips .tip.good{border-left-color:var(--success);}
+
+  /* ===== Stats strip ===== */
+  .stats{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:0 0 56px;
+  }
+  @media (max-width:700px){.stats{grid-template-columns:repeat(2,1fr);}}
+  .stat{
+    background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;
+    padding:18px 20px;
+  }
+  .stat .num{font-family:'Space Grotesk',sans-serif;font-size:1.7rem;font-weight:700;color:var(--accent);}
+  .stat .lbl{font-size:.78rem;color:var(--text-muted);margin-top:3px;}
+
+  /* ===== Section heading ===== */
+  .section{margin-bottom:60px;}
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:8px;}
+  .section-head h2{
+    font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:600;margin:0;
+  }
+  .section-head p{color:var(--text-muted);font-size:.88rem;margin:0;}
+
+  /* ===== Model comparison ===== */
+  .model-bars{display:flex;flex-direction:column;gap:16px;margin-bottom:22px;}
+  .model-row{display:grid;grid-template-columns:160px 1fr 70px;align-items:center;gap:14px;}
+  .model-row .name{font-size:.9rem;font-weight:600;}
+  .model-row .name .crown{color:var(--warning);margin-right:4px;}
+  .bar-track{height:10px;background:var(--bg-inset);border-radius:6px;overflow:hidden;border:1px solid var(--border-soft);}
+  .bar-fill{height:100%;border-radius:6px;background:var(--accent);width:0;transition:width 1s cubic-bezier(.2,.8,.2,1);}
+  .model-row .pct{font-family:'JetBrains Mono',monospace;font-size:.85rem;text-align:right;color:var(--text-muted);}
+
+  table{width:100%;border-collapse:collapse;font-size:.86rem;}
+  th,td{padding:10px 14px;border-bottom:1px solid var(--border-soft);text-align:left;}
+  th{color:var(--text-muted);font-weight:500;font-family:'JetBrains Mono',monospace;font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;}
+  td.mono{font-family:'JetBrains Mono',monospace;}
+  .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-elevated);}
+  tr:last-child td{border-bottom:none;}
+
+  .dataset-controls{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;background:var(--accent-dim);
+    color:var(--accent);border:1px solid rgba(95,168,255,0.3);border-radius:8px;
+    padding:9px 16px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;
+  }
+  .btn:hover{background:rgba(95,168,255,0.22);}
+
+  .note{
+    background:var(--bg-inset);border:1px solid var(--border-soft);border-radius:10px;
+    padding:14px 16px;font-size:.83rem;color:var(--text-muted);margin-top:10px;
+  }
+  .note b{color:var(--text);}
+
+  footer{
+    border-top:1px solid var(--border-soft);padding:28px 0 40px;
+    color:var(--text-muted);font-size:.82rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  }
+  footer .stack span{margin-right:14px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="dot"></span> Student Placement Predictor</div>
+  <nav>
+    <a href="#predict">Predict</a>
+    <a href="#models">Models</a>
+    <a href="#dataset">Dataset</a>
+  </nav>
+</div>
+
+<div class="wrap">
+
+  <div class="hero-head">
+    <div class="eyebrow">AICTE Machine Learning Internship · Live Demo</div>
+    <h1 class="title">Will this student get placed?</h1>
+    <p class="subtitle">A logistic regression model — trained in Python on 1,000 student records — running live in your browser. Drag the sliders below and watch the prediction update in real time, with zero server calls.</p>
+  </div>
+
+  <div class="predictor" id="predict">
+    <div class="panel">
+      <h2>Student profile</h2>
+      <div class="slider-grid" id="sliderGrid"></div>
+    </div>
+
+    <div class="panel result-panel">
+      <h2 style="align-self:flex-start;">Prediction</h2>
+      <div class="gauge-wrap">
+        <svg width="212" height="212" viewBox="0 0 212 212">
+          <circle cx="106" cy="106" r="92" fill="none" stroke="#1B232C" stroke-width="14"/>
+          <circle id="gaugeArc" cx="106" cy="106" r="92" fill="none" stroke="#5FA8FF" stroke-width="14"
+                  stroke-linecap="round" stroke-dasharray="578.05" stroke-dashoffset="578.05"
+                  style="transition:stroke-dashoffset .4s ease, stroke .4s ease;"/>
+        </svg>
+        <div class="gauge-center">
+          <div class="gauge-pct mono" id="gaugePct">--%</div>
+          <div class="gauge-lbl">placement probability</div>
+        </div>
+      </div>
+      <div class="verdict" id="verdict">Adjust the sliders to begin</div>
+      <div class="tips" id="tips"></div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="num mono" id="statTotal">—</div><div class="lbl">Students in training data</div></div>
+    <div class="stat"><div class="num mono" id="statRate">—</div><div class="lbl">Historical placement rate</div></div>
+    <div class="stat"><div class="num mono" id="statAcc">—</div><div class="lbl">Best model test accuracy</div></div>
+    <div class="stat"><div class="num mono">3</div><div class="lbl">Models compared</div></div>
+  </div>
+
+  <div class="section" id="models">
+    <div class="section-head">
+      <h2>Model comparison</h2>
+      <p>Test accuracy across all three classifiers, evaluated on the same held-out split</p>
+    </div>
+    <div class="model-bars" id="modelBars"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Model</th><th>Test accuracy</th><th>CV accuracy</th><th>CV std dev</th><th>Best for</th></tr></thead>
+        <tbody id="modelTable"></tbody>
+      </table>
+    </div>
+    <div class="note">
+      <b>Why logistic regression won:</b> the synthetic target was generated from a smooth, mostly-linear weighted combination of features — which is exactly what logistic regression is built to model. Tree-based ensembles tend to pull ahead on data with stronger non-linear feature interactions.
+    </div>
+  </div>
+
+  <div class="section" id="dataset">
+    <div class="section-head">
+      <h2>Training dataset</h2>
+      <p>First 12 rows of the actual 1,000-record dataset used to train this model</p>
+    </div>
+    <div class="dataset-controls">
+      <span class="mono" style="font-size:.82rem;color:var(--text-muted);" id="datasetStatus">Loading student_placement.csv…</span>
+      <a class="btn" href="student_placement.csv" download>⬇ Download full CSV</a>
+    </div>
+    <div class="table-wrap">
+      <table id="datasetTable"><thead></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <footer>
+    <div class="stack">
+      <span>🐍 Python (training)</span><span>🤖 Scikit-learn</span><span>⚡ Vanilla JS (inference)</span><span>▲ Vercel</span>
+    </div>
+    <div>Model retrained offline · weights embedded client-side</div>
+  </footer>
+
+</div>
+
+<script>
+/* ============================================================
+   REAL trained Logistic Regression weights — exported from the
+   actual scikit-learn model (src/best_model.pkl + scaler.pkl).
+   Prediction below is mathematically identical to calling
+   model.predict_proba() in Python: sigmoid(scaled_X · coef + intercept)
+   ============================================================ */
+const FEATURES = ["CGPA","Attendance","Communication","Aptitude_Score","Internships","Technical_Skills","Projects","Backlogs","Soft_Skills","Mock_Interviews"];
+const COEF = [1.0826484839443098,0.46272277694499675,0.30629016324099184,0.47460216720496484,0.5790291329194021,0.6421998972407249,0.3974234118082488,-0.6180637058888808,0.35086922205489857,0.180247162010987];
+const INTERCEPT = 0.6308302045924348;
+const MEAN  = [7.22605,80.80375,6.73,67.94875,0.95,6.72,1.84875,0.53625,6.705,3.99125];
+const SCALE = [0.9606732782273065,9.867129062574381,1.760568090134545,13.871864454264971,0.8944271909999159,1.7934882213162147,1.2993742484365312,0.7253867502925594,1.5363837411271963,2.0654717227548773];
+
+const RESULTS = {
+  "Logistic Regression": {test:75.50, cv:77.25, std:1.66, best:"Interpretability", crown:true},
+  "Random Forest":       {test:72.00, cv:74.00, std:3.30, best:"Robustness", crown:false},
+  "Decision Tree":       {test:63.50, cv:64.38, std:2.27, best:"Visual explanation", crown:false},
+};
+const TOTAL_STUDENTS = 1000;
+const PLACEMENT_RATE = 60.1;
+
+function predict(values){
+  let z = INTERCEPT;
+  for (let i=0;i<values.length;i++){
+    const scaled = (values[i] - MEAN[i]) / SCALE[i];
+    z += scaled * COEF[i];
+  }
+  return 1/(1+Math.exp(-z));
+}
+
+/* ---- Slider config: id, label, min, max, step, default, icon ---- */
+const SLIDERS = [
+  {key:"CGPA", label:"CGPA", min:5, max:10, step:0.1, def:7.5, icon:"📚"},
+  {key:"Attendance", label:"Attendance (%)", min:50, max:100, step:1, def:80, icon:"🏫"},
+  {key:"Communication", label:"Communication", min:1, max:10, step:1, def:7, icon:"🗣️"},
+  {key:"Aptitude_Score", label:"Aptitude score", min:40, max:100, step:1, def:70, icon:"🧠"},
+  {key:"Internships", label:"Internships", min:0, max:3, step:1, def:1, icon:"💼"},
+  {key:"Technical_Skills", label:"Technical skills", min:1, max:10, step:1, def:7, icon:"💻"},
+  {key:"Projects", label:"Projects", min:0, max:5, step:1, def:2, icon:"🗂️"},
+  {key:"Backlogs", label:"Backlogs", min:0, max:4, step:1, def:0, icon:"⚠️"},
+  {key:"Soft_Skills", label:"Soft skills", min:1, max:10, step:1, def:7, icon:"🤝"},
+  {key:"Mock_Interviews", label:"Mock interviews", min:0, max:10, step:1, def:4, icon:"🎤"},
+];
+
+const grid = document.getElementById("sliderGrid");
+SLIDERS.forEach(s=>{
+  const field = document.createElement("div");
+  field.className = "field";
+  field.innerHTML = `
+    <label>${s.icon} ${s.label} <span class="v mono" id="val_${s.key}">${s.def}</span></label>
+    <input type="range" id="in_${s.key}" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.def}">
+  `;
+  grid.appendChild(field);
+});
+
+const gaugeArc = document.getElementById("gaugeArc");
+const gaugePct = document.getElementById("gaugePct");
+const verdictEl = document.getElementById("verdict");
+const tipsEl = document.getElementById("tips");
+const CIRC = 2*Math.PI*92; // ~578.05
+
+function lerp(a,b,t){ return a + (b-a)*t; }
+function colorFor(t){
+  // 0 -> danger, 0.5 -> warning, 1 -> success
+  const stops = [
+    [248,102,92],   // danger
+    [224,162,59],   // warning
+    [63,201,123],   // success
+  ];
+  let seg = t < 0.5 ? 0 : 1;
+  let localT = t < 0.5 ? t/0.5 : (t-0.5)/0.5;
+  const c1 = stops[seg], c2 = stops[seg+1];
+  const r = Math.round(lerp(c1[0],c2[0],localT));
+  const g = Math.round(lerp(c1[1],c2[1],localT));
+  const b = Math.round(lerp(c1[2],c2[2],localT));
+  return `rgb(${r},${g},${b})`;
+}
+
+function buildTips(vals){
+  const tips = [];
+  if (vals.CGPA < 7.5)          tips.push({t:"📚 Aim for a CGPA above 7.5 — it's the primary filter for most recruiters.", good:false});
+  if (vals.Attendance < 75)     tips.push({t:"🏫 Maintain at least 75% attendance to stay eligible for campus drives.", good:false});
+  if (vals.Communication < 7)   tips.push({t:"🗣️ Improve communication via group discussions and presentations.", good:false});
+  if (vals.Internships === 0)   tips.push({t:"💼 Complete at least one internship for industry exposure.", good:false});
+  if (vals.Technical_Skills < 7)tips.push({t:"💻 Sharpen technical skills — practice DSA and build domain projects.", good:false});
+  if (vals.Backlogs > 0)        tips.push({t:"⚠️ Clear all backlogs; many companies enforce a zero-backlog policy.", good:false});
+  if (vals.Mock_Interviews < 3) tips.push({t:"🎤 Attend more mock interviews to build interview confidence.", good:false});
+  if (vals.Projects < 2)        tips.push({t:"🗂️ Build 2–3 solid projects to showcase on your resume and GitHub.", good:false});
+  if (tips.length === 0) tips.push({t:"🌟 Strong profile! Keep practicing and apply widely.", good:true});
+  return tips;
+}
+
+function update(){
+  const vals = {};
+  SLIDERS.forEach(s=>{
+    const el = document.getElementById(`in_${s.key}`);
+    const v = parseFloat(el.value);
+    vals[s.key] = v;
+    document.getElementById(`val_${s.key}`).textContent = (s.step < 1) ? v.toFixed(1) : v;
+  });
+  const ordered = FEATURES.map(f=>vals[f]);
+  const prob = predict(ordered);
+
+  gaugeArc.setAttribute("stroke-dashoffset", CIRC*(1-prob));
+  const col = colorFor(prob);
+  gaugeArc.setAttribute("stroke", col);
+  gaugePct.style.color = col;
+  gaugePct.textContent = (prob*100).toFixed(1)+"%";
+
+  if (prob >= 0.5){
+    verdictEl.textContent = "✅ Likely to be placed";
+    verdictEl.className = "verdict placed";
+  } else {
+    verdictEl.textContent = "❌ Needs improvement";
+    verdictEl.className = "verdict risk";
+  }
+
+  tipsEl.innerHTML = "";
+  buildTips(vals).forEach(tip=>{
+    const div = document.createElement("div");
+    div.className = "tip" + (tip.good ? " good" : "");
+    div.textContent = tip.t;
+    tipsEl.appendChild(div);
+  });
+}
+
+SLIDERS.forEach(s=>{
+  document.getElementById(`in_${s.key}`).addEventListener("input", update);
+});
+update();
+
+/* ---- Stats strip ---- */
+document.getElementById("statTotal").textContent = TOTAL_STUDENTS.toLocaleString();
+document.getElementById("statRate").textContent = PLACEMENT_RATE.toFixed(1)+"%";
+document.getElementById("statAcc").textContent = RESULTS["Logistic Regression"].test.toFixed(1)+"%";
+
+/* ---- Model comparison bars + table ---- */
+const barsEl = document.getElementById("modelBars");
+const tableEl = document.getElementById("modelTable");
+const order = ["Logistic Regression","Random Forest","Decision Tree"];
+const maxAcc = Math.max(...order.map(k=>RESULTS[k].test));
+
+order.forEach(name=>{
+  const r = RESULTS[name];
+  const row = document.createElement("div");
+  row.className = "model-row";
+  row.innerHTML = `
+    <div class="name">${r.crown ? '<span class="crown">★</span>' : ''}${name}</div>
+    <div class="bar-track"><div class="bar-fill" data-w="${(r.test/maxAcc*100)}"></div></div>
+    <div class="pct mono">${r.test.toFixed(1)}%</div>
+  `;
+  barsEl.appendChild(row);
+
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${r.crown ? '★ ' : ''}${name}</td>
+    <td class="mono">${r.test.toFixed(2)}%</td>
+    <td class="mono">${r.cv.toFixed(2)}%</td>
+    <td class="mono">±${r.std.toFixed(2)}%</td>
+    <td>${r.best}</td>
+  `;
+  tableEl.appendChild(tr);
+});
+
+requestAnimationFrame(()=>{
+  setTimeout(()=>{
+    document.querySelectorAll(".bar-fill").forEach(el=>{
+      el.style.width = el.dataset.w + "%";
+    });
+  }, 80);
+});
+
+/* ---- Dataset preview: fetch the real CSV sitting alongside this file ---- */
+fetch("student_placement.csv")
+  .then(r=>{
+    if(!r.ok) throw new Error("not found");
+    return r.text();
+  })
+  .then(text=>{
+    const lines = text.trim().split("\n");
+    const headers = lines[0].split(",");
+    const rows = lines.slice(1, 13).map(l=>l.split(","));
+
+    const thead = document.querySelector("#datasetTable thead");
+    const tbody = document.querySelector("#datasetTable tbody");
+    thead.innerHTML = "<tr>" + headers.map(h=>`<th>${h}</th>`).join("") + "</tr>";
+    tbody.innerHTML = rows.map(r=>
+      "<tr>" + r.map(c=>`<td class="mono">${c}</td>`).join("") + "</tr>"
+    ).join("");
+
+    document.getElementById("datasetStatus").textContent =
+      `Showing 12 of ${lines.length-1} rows · loaded from student_placement.csv`;
+  })
+  .catch(()=>{
+    document.getElementById("datasetStatus").textContent =
+      "Couldn't load student_placement.csv — make sure it's deployed alongside index.html";
+  });
+</script>
+</body>
+</html>
